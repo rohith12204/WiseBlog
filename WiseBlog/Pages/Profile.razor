@@ -1,0 +1,400 @@
+﻿@page "/profile"
+@attribute [CustomAuthorize("user")]
+
+@inject HttpClient Http
+@using Markdig
+@using Microsoft.AspNetCore.WebUtilities
+@using WiseBlog.Shared.Models
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IConfiguration Configuration
+@inject HttpClient Http
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Profile Page</PageTitle>
+
+<div style="padding-top: 64px;">
+    @if (profile != null)
+    {
+        <div class="container mt-4 d-flex flex-column flex-lg-row align-items-center justify-content-between">
+            <!-- Left Section: Name and Bio -->
+            <div class="text-center text-lg-start mb-4 mb-lg-0" style="flex: 1;">
+                <h1 class="username">@profile.name</h1>
+                <p>@((MarkupString)profile.bio.Replace("\n", "<br />"))</p>
+            </div>
+
+            <!-- Center Section: Followers and Following -->
+            <div class="text-center mb-4 mb-lg-0" style="flex: 1;">
+                <div>
+                    <h3>@profile.followers.Count()</h3>
+                    <p>Followers</p>
+                </div>
+                <div>
+                    <h3>@profile.following.Count()</h3>
+                    <p>Following</p>
+                </div>
+            </div>
+
+            <!-- Right Section: Profile Picture -->
+            <div class="text-center" style="flex: 1;">
+                <img src="@imageDataUrl" alt="Profile Picture" class="profile-picture" />
+                <p class="mt-2">@profile.name</p>
+                @if (ProfileOwner == false)
+                {
+                    <button id="Relation" class="btn btn-outline-dark" style="@GetButtonClass()" onclick="@ToggleRelation">@RelationStatus</button>
+                }
+            </div>
+        </div>
+
+        @if (ProfileOwner == false)
+        {
+
+            <MudTabs Class="m-lg-5 d-flex align-content-start">
+                <MudTabPanel Text="Home" Icon="@Icons.Material.Filled.AddHome">
+                    <div class="space-y-8">
+                        @foreach (var blog in blogList)
+                        {
+                            @if (!(blog.visibility == Enum.Parse<VisibilityOptions>("Followers", true)))
+                            {
+                                <div class="flex flex-col md:flex-row items-start gap-6 border-b pb-6">
+                                    <!-- Blog Content -->
+                                    <div class="flex-1">
+                                        <h2 class="text-xl mt-2 font-semibold text-gray-900 hover:underline cursor-pointer"
+                                            @onclick="() => Nav(blog.Id)">
+                                            @blog.title
+                                        </h2>
+                                        <p class="text-gray-600 mt-2"><strong>Category:  </strong> @blog.category <strong class="p-2">Visibility:</strong>@blog.visibility</p>
+                                        <p class="text-gray-600 mt-2">@blog.description</p>
+                                        <p class="text-sm text-gray-400 mt-2">
+                                            <strong>Uploaded: </strong>@blog.created_at.ToString("MMM dd, yyyy h:mm tt")
+                                        </p>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudTabPanel>
+                <MudTabPanel Text="Exclusively for Followers" Icon="@Icons.Material.Filled.SupervisedUserCircle">
+                    <div class="space-y-8">
+                        @foreach (var blog in blogList)
+                        {
+                            @if (blog.visibility == Enum.Parse<VisibilityOptions>("Followers", true))
+                            {
+                                <div class="flex flex-col md:flex-row items-start gap-6 border-b pb-6">
+                                    <!-- Blog Content -->
+                                    <div class="flex-1">
+                                        <h2 class="text-xl mt-2 font-semibold text-gray-900 hover:underline cursor-pointer"
+                                            @onclick="() => Nav(blog.Id)">
+                                            @blog.title
+                                        </h2>
+                                        <p class="text-gray-600 mt-2"><strong>Category:  </strong> @blog.category <strong class="p-2">Visibility:</strong>@blog.visibility</p>
+                                        <p class="text-gray-600 mt-2">@blog.description</p>
+                                        <p class="text-sm text-gray-400 mt-2">
+                                            <strong>Uploaded: </strong>@blog.created_at.ToString("MMM dd, yyyy h:mm tt")
+                                        </p>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudTabPanel>
+            </MudTabs>
+        }
+        else
+        {
+            <MudTabs Class="m-lg-5 d-flex align-content-start">
+                <MudTabPanel Text="Home" Icon="@Icons.Material.Filled.AddHome">
+                    <div class="space-y-8">
+                        @foreach (var blog in blogList)
+                        {
+                            @if (!(blog.visibility == Enum.Parse<VisibilityOptions>("Private", true)))
+                            {
+                                <div class="flex flex-col md:flex-row items-start gap-6 border-b pb-6">
+                                    <!-- Blog Content -->
+                                    <div class="flex-1">
+                                        <h2 class="text-xl mt-2 font-semibold text-gray-900 hover:underline cursor-pointer"
+                                            @onclick="() => Nav(blog.Id)">
+                                            @blog.title
+                                        </h2>
+                                        <p class="text-gray-600 mt-2"><strong>Category:  </strong> @blog.category <strong class="p-2">Visibility:</strong>@blog.visibility</p>
+                                        <p class="text-gray-600 mt-2">@blog.description</p>
+                                        <p class="text-sm text-gray-400 mt-2">
+                                            <strong>Uploaded: </strong>@blog.created_at.ToString("MMM dd, yyyy h:mm tt")
+                                        </p>
+                                    </div>
+                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => DeleteBlog(blog.Id)" Color="Color.Error">Delete Blog</MudButton>
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudTabPanel>
+                <MudTabPanel Text="Private Blogs" Icon="@Icons.Material.Filled.PrivacyTip">
+                    <div class="space-y-8">
+                        @foreach (var blog in blogList)
+                        {
+                            @if (blog.visibility == Enum.Parse<VisibilityOptions>("Private", true))
+                            {
+                                <div class="flex flex-col md:flex-row items-start gap-6 border-b pb-6">
+                                    <!-- Blog Content -->
+                                    <div class="flex-1">
+                                        <h2 class="text-xl mt-2 font-semibold text-gray-900 hover:underline cursor-pointer"
+                                            @onclick="() => Nav(blog.Id)">
+                                            @blog.title
+                                        </h2>
+                                        <p class="text-gray-600 mt-2"><strong>Category:  </strong> @blog.category <strong class="p-2">Visibility:</strong>@blog.visibility</p>
+                                        <p class="text-gray-600 mt-2">@blog.description</p>
+                                        <p class="text-sm text-gray-400 mt-2">
+                                            <strong>Uploaded: </strong>@blog.created_at.ToString("MMM dd, yyyy h:mm tt")
+                                        </p>
+                                    </div>
+                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => DeleteBlog(blog.Id)" Color="Color.Error">Delete Blog</MudButton>
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudTabPanel>
+                <MudTabPanel Text="Saved Summary" Icon="@Icons.Material.Filled.Summarize">
+                    <div class="space-y-8">
+                        @if (Summaries != null && Summaries.Count() > 0)
+                        {
+                            @foreach (var summary in Summaries)
+                            {
+                                <div class="flex flex-col md:flex-row items-start gap-6 border-b pb-6">
+                                    <!-- Blog Content -->
+                                    <div class="flex-1">
+                                        <h2 class="text-xl mt-2 font-semibold text-gray-900 hover:underline cursor-pointer"
+                                            @onclick="() => Nav(summary.blogId)">
+                                            @summary.title
+                                        </h2>
+                                        <p class="text-gray-600 mt-2">@((MarkupString)Markdown.ToHtml(summary.summary))</p>
+                                        <p class="text-sm text-gray-400 mt-2">
+                                            <strong>Created: </strong>@summary.created_at.ToString("MMM dd, yyyy h:mm tt")
+                                        </p>
+                                    </div>
+                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => DeleteSummary(summary.Id)" Color="Color.Error">Delete Summary</MudButton>
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudTabPanel>
+            </MudTabs>
+        }
+
+    }
+    else
+    {
+        <div class="d-flex justify-content-center align-items-center vh-100">
+            <div class="text-center">
+                <p>Loading Your Profile.</p>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .username {
+        font-weight: 700;
+        font-size: 2.2rem;
+        @* color: #222; /* Darker shade for text */ *@
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-picture {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #ddd;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    }
+</style>
+
+
+@code {
+    // private string UserName = "Aravind G";
+    // private string UserBio = "This is the bio of the user. A short description about the user goes here.";
+    // private string ProfileImage = "https:via.placeholder.com/150"; Replace with your image URL
+    // private int FollowersCount = 200;
+    // private int FollowingCount = 150;
+
+    private WiseBlog.Shared.Models.Profile? profile = null;
+    string imageDataUrl = "";
+
+    User authuser;
+    WiseBlog.Shared.Models.Profile AuthProfile;
+    bool ProfileOwner = false;
+    string RelationStatus;
+
+    public List<WiseBlog.Shared.Models.Blog> blogs;
+    public List<WiseBlog.Shared.Models.Blog> blogList = new List<Shared.Models.Blog>();
+
+    public List<WiseBlog.Shared.Models.Summary>? Summaries;
+
+    string apiBaseUrl;
+
+    protected override async void OnInitialized()
+    {
+        apiBaseUrl = Configuration["WEBAPI:ControllerURL"];
+        var uri = new Uri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("id", out var id))
+        {
+            if (String.IsNullOrEmpty(id))
+            {
+                AutoNavigate();
+            }
+            Console.WriteLine(id);
+            try
+            {
+                var url = $"{apiBaseUrl}/api/Profile?userId={id}";
+                profile = await Http.GetFromJsonAsync<WiseBlog.Shared.Models.Profile>(url);
+                Console.WriteLine(profile.name);
+                imageDataUrl = $"data:image/png;base64,{profile.image}";
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Registration failed: {ex.Message}", Severity.Error);
+            }
+        }
+        else
+        {
+            AutoNavigate();
+        }
+
+        blogs = (await Http.GetFromJsonAsync<List<WiseBlog.Shared.Models.Blog>>($"{apiBaseUrl}/api/Blog/GetAllBlogs"));
+        blogs.Reverse();
+
+
+        authuser = ((AuthenticationProvider)Auth).User;
+
+        var Profileurl = $"{apiBaseUrl}/api/Profile?userId={authuser.id}";
+        AuthProfile = await Http.GetFromJsonAsync<WiseBlog.Shared.Models.Profile>(Profileurl);
+        Console.WriteLine(AuthProfile.name);
+
+        if ((authuser.id).ToString() == profile.userId) ProfileOwner = true;
+        Console.WriteLine("Profile Owner" + ProfileOwner);
+        if (AuthProfile.following.Contains(profile.userId)) { RelationStatus = "Following"; }
+        else { RelationStatus = "Follow"; }
+        GetButtonClass();
+        StateHasChanged();
+
+        PrepareBlogList(id);
+
+        StateHasChanged();
+
+        if (ProfileOwner == true)
+        {
+            GetSummaries();
+            StateHasChanged();
+        }
+
+    }
+
+    private async Task GetSummaries()
+    {
+        Summaries = (await Http.GetFromJsonAsync<List<Summary>>($"{apiBaseUrl}/api/Blog/GetSummary/{AuthProfile.userId}"));
+        Console.WriteLine("Got Summaries");
+    }
+
+    private void PrepareBlogList(string id)
+    {
+        foreach (var blog in blogs)
+        {
+            if (blog.userId == id)
+            {
+                if (blog.visibility == Enum.Parse<VisibilityOptions>("Public", true))
+                {
+                    blogList.Add(blog);
+                }
+                else if (blog.visibility == Enum.Parse<VisibilityOptions>("Private", true))
+                {
+                    if (ProfileOwner) blogList.Add(blog);
+                    else continue;
+                }
+                else
+                {
+                    Console.WriteLine("Entering Followed Post");
+                    if (ProfileOwner == false)
+                    {
+                        if (AuthProfile != null && AuthProfile.following.Contains(blog.userId))
+                        {
+                            Console.WriteLine("Is Following");
+                            blogList.Add(blog);
+                        }
+                    }
+                    else
+                    {
+                        blogList.Add(blog);
+                    }
+                }
+            }
+        }
+    }
+
+    public async Task DeleteBlog(string blogId)
+    {
+        Console.WriteLine("Deleting Blog");
+        var url = $"{apiBaseUrl}/api/Blog/DeleteBlog/{blogId}";
+        await Http.DeleteAsync(url);
+        Console.WriteLine("Deletion Completed");
+        StateHasChanged();
+        Navigation.NavigateTo(Navigation.Uri, replace: true, forceLoad: true);
+    }
+
+    public async Task DeleteSummary(string summaryId)
+    {
+        Console.WriteLine("Deleting Blog");
+        var url = $"{apiBaseUrl}/api/Blog/DeleteSummary/{summaryId}";
+        await Http.DeleteAsync(url);
+        Console.WriteLine("Deletion Completed");
+        StateHasChanged();
+        Navigation.NavigateTo(Navigation.Uri, replace: true, forceLoad: true);
+    }
+
+    public void AutoNavigate()
+    {
+        Navigation.NavigateTo("/", replace: true);
+    }
+
+    public string GetButtonClass()
+    {
+        if (RelationStatus == "Follow")
+            return "border-radius: 50px; background-color: white; color: black;";
+        else
+            return "border-radius: 50px; color: white; background-color: black;";
+    }
+
+    private async Task ToggleRelation()
+    {
+        var request = new FollowRequest { UserId = (authuser.id).ToString(), BlogUserId = profile.userId };
+
+        if (RelationStatus == "Follow")
+        {
+            RelationStatus = "Following";
+            request.ToFollow = true;
+            var response = await Http.PostAsJsonAsync($"{apiBaseUrl}/api/Profile/ToggleFollow", request);
+            if (response.IsSuccessStatusCode)
+            {
+                // var result = await response.Content.ReadFromJsonAsync<dynamic>();
+                // Console.WriteLine($"Relationship Result: {result}");
+            }
+        }
+        else
+        {
+            RelationStatus = "Follow";
+            request.ToFollow = false;
+            var response = await Http.PostAsJsonAsync($"{apiBaseUrl}/api/Profile/ToggleFollow", request);
+            if (response.IsSuccessStatusCode)
+            {
+                // var result = await response.Content.ReadFromJsonAsync<dynamic>();
+                // Console.WriteLine($"Relationship Result: {result}");
+            }
+        }
+    }
+
+    public void Nav(string blogId)
+    {
+        Navigation.NavigateTo($"/blog?blogId={blogId}");
+    }
+}

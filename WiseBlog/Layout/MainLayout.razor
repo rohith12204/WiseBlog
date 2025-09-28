@@ -1,0 +1,266 @@
+﻿@inherits LayoutComponentBase
+@inject HttpClient Http
+@inject SupabaseService supabaseService
+@inject IJSRuntime _jsRuntime
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider Auth
+@inject IConfiguration Configuration
+@* <MudThemeProvider /> *@
+<MudThemeProvider IsDarkMode="@isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+
+
+@code {
+    private bool isDarkMode = false;
+    private bool drawerOpen = false;
+
+    private async Task OnDarkModeChanged()
+    {
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "darkMode", isDarkMode ? "enabled" : "disabled");
+    }
+
+    private void ToggleDrawer()
+    {
+        drawerOpen = !drawerOpen;
+    }
+}
+
+<main>
+    <MudLayout>
+        <MudAppBar Elevation="1" Style="background-color: #263238;">
+
+            <!-- Mobile menu button - visible only on small screens -->
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                           OnClick="@ToggleDrawer" Class="d-md-none" />
+
+
+            <MudText onclick="@NavTo" Typo="Typo.h5" Class="ml-2" Style="color: white; display: flex; align-items: center; cursor:pointer;">
+                <MudIcon Class="mr-1" Icon="@Icons.Custom.Brands.MudBlazor" />
+                WiseBlog
+
+            </MudText>
+
+            <MudSpacer />
+            <MudSwitch T="bool"
+                       Label="Dark Mode"
+                       @bind-Value="isDarkMode"
+                       @bind-Value:after="OnDarkModeChanged"
+                       Color="Color.Info"
+                       UncheckedColor="Color.Info"
+                       Class="ma-4 d-none d-sm-flex" />
+            @* <MudSpacer /> *@
+
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="nav-link d-none d-md-inline-flex" href="/write" Match="NavLinkMatch.All">
+                        <button class="btn btn-outline-dark" style="border-radius: 50px; background-color: white; color: black;">
+                            Write
+                        </button>
+                    </NavLink>
+
+                    <div class="dropdown">
+                        <button class="btn rounded-circle"
+                                type="button"
+                                id="dropdownMenuButton"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                onclick="@GetNotifications">
+                            <MudIcon Icon="@Icons.Material.Filled.Notifications" Color="Color.Info" Size="Size.Large" />
+                        </button>
+                        <ul class="dropdown-menu-start dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            @if (notifications != null && notifications?.Count() > 0)
+                            {
+                                @foreach (var notification in notifications)
+                                {
+                                    <li class="dropdown-item">
+                                        <div class="d-flex justify-content-center" @onclick="() => Navigate(notification.redirectTo)">
+                                            @notification.description
+                                        </div>
+                                    </li>
+                                }
+                            }
+                            else
+                            {
+                                <li class="dropdown-item">Currently Empty!</li>
+                            }
+                        </ul>
+                    </div>
+                    <div class="dropdown mr-5">
+                        <button class="btn rounded-circle"
+                                type="button"
+                                id="dropdownMenuButton"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            <MudIcon Icon="@Icons.Material.Rounded.AccountCircle" Color="Color.Info" Size="Size.Large" />
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <li>
+                                <div class="d-flex justify-content-center">
+
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Dark" Size="Size.Large" />
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@NavToProfile">Profile</MudButton>
+                                </div>
+                            </li>
+
+                            <li>
+                                <hr class="dropdown-divider" />
+                            </li>
+
+                            <li class="dropdown-item">
+                                <strong>Name: </strong>@authuser?.name
+                            </li>
+                            <li class="dropdown-item">
+                                <strong>Email: </strong>@authuser?.email
+                            </li>
+                            <li class="dropdown-item">
+                                <strong>Role: </strong>@authuser?.role
+                            </li>
+
+                            <li>
+                                <hr class="dropdown-divider" />
+                            </li>
+
+                            <li>
+                                <div class="d-flex justify-content-center">
+                                    <MudButton Class="align-content-center" Variant="Variant.Outlined" Color="Color.Primary" OnClick="@Logout">Logout</MudButton>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </Authorized>
+
+                <NotAuthorized>
+                    <NavLink class="nav-link" href="/login" Match="NavLinkMatch.All">
+                        <MudButton Variant="Variant.Outlined" Style="border-radius: 50px; color: black; background-color: white;">
+                            Login
+                        </MudButton>
+
+                    </NavLink>
+                </NotAuthorized>
+
+            </AuthorizeView>
+
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="@drawerOpen" Elevation="1" Variant="@DrawerVariant.Temporary" ClipMode="DrawerClipMode.Always">
+            <MudNavMenu>
+                <div class="d-flex flex-column pa-4">
+                    <!-- Dark mode toggle for mobile -->
+                    <div class="d-flex align-center mb-4">
+                        <MudText>Dark Mode</MudText>
+                        <MudSwitch T="bool" @bind-Value="isDarkMode"
+                                   @bind-Value:after="OnDarkModeChanged"
+                                   Color="Color.Primary" Class="ml-auto" />
+                    </div>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <!-- Mobile menu items for authenticated users -->
+                            <MudNavLink Href="/write" Icon="@Icons.Material.Filled.Edit">Write</MudNavLink>
+                            <MudNavLink OnClick="@NavToProfile" Icon="@Icons.Material.Filled.AccountCircle">Profile</MudNavLink>
+                            <MudNavLink OnClick="@Logout" Icon="@Icons.Material.Filled.Logout">Logout</MudNavLink>
+                        </Authorized>
+                        <NotAuthorized>
+                            <!-- Mobile menu items for guests -->
+                            <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </MudNavMenu>
+        </MudDrawer>
+
+
+    </MudLayout>
+
+    <article class="content">
+        @Body
+    </article>
+</main>
+
+<style>
+    .no-highlight:focus,
+    .no-highlight:active {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* Adjust app bar for better mobile view */
+    @@media (max-width: 600px) {
+        .mud-appbar {
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+    }
+</style>
+
+@code {
+    User? authuser;
+    string imageDataUrl = "";
+
+    List<Notification>? notifications;
+    string apiBaseUrl;
+
+    async Task GetUser()
+    {
+        if (authuser == null)
+        {
+            Console.WriteLine("Hitting MainLayout");
+            await ((AuthenticationProvider)Auth).GetAuthenticationStateAsync();
+            authuser = ((AuthenticationProvider)Auth).User;
+            // Console.WriteLine("Name: " + authuser?name);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        apiBaseUrl = Configuration["WEBAPI:ControllerURL"];
+        await GetUser();
+        StateHasChanged();
+        var darkModeSetting = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "darkMode");
+        isDarkMode = darkModeSetting == "enabled";
+        StateHasChanged();
+    }
+
+    async Task GetNotifications()
+    {
+        if (authuser != null)
+        {
+            notifications = (await Http.GetFromJsonAsync<List<Notification>>($"{apiBaseUrl}/api/Notification/Getnotifications/{authuser.id}"));
+            foreach (var noti in notifications)
+            {
+                Console.WriteLine(noti.description);
+            }
+        }
+    }
+
+    public async Task Logout()
+    {
+        Console.WriteLine("Logging out");
+        await _jsRuntime.InvokeVoidAsync("CookieRemover.Delete", "auth_token");
+        await supabaseService.LogoutAsync();
+        Console.WriteLine("Logged out");
+        ((AuthenticationProvider)Auth).SetUser(null);
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private void Navigate(string url)
+    {
+        Nav.NavigateTo(url, forceLoad: true);
+    }
+
+    private void NavTo()
+    {
+        Nav.NavigateTo("/");
+    }
+    private void NavToLogin()
+    {
+        Nav.NavigateTo("/login");
+    }
+    private void NavToProfile()
+    {
+        Nav.NavigateTo($"/profile?id={authuser.id}", forceLoad: true);
+    }
+}

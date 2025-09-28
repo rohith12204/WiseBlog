@@ -1,0 +1,183 @@
+﻿@page "/register"
+@inherits UserContext
+@using WiseBlog.Services
+@inject SupabaseService supabaseService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Security.Claims
+@inject IJSRuntime _jsRuntime
+@inject IConfiguration Configuration
+@inject AuthenticationStateProvider Auth
+@inject HttpClient Http
+@using Microsoft.AspNetCore.WebUtilities;
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="pt-lg-5 mt-20">
+    <MudCard Class="d-flex flex-row align-items-stretch">
+        <!-- Left: Registration Form -->
+        <MudPaper Class="p-6 flex-grow-1" Style="min-width: 60%;">
+            <MudCardHeader>
+                <MudText Typo="Typo.h5">Register</MudText>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudForm @ref="form" @bind-IsValid="@success">
+                    <MudTextField @bind-Value="username" Label="Username" Required="true"
+                                  RequiredError="Username is required!" />
+                    <MudTextField @bind-Value="email" Label="Email" Required="true"
+                                  RequiredError="Email is required!" InputType="InputType.Email" />
+                    <MudTextField @bind-Value="password" Label="Password" Required="true"
+                                  RequiredError="Password is required!" InputType="InputType.Password" />
+                    <MudTextField @bind-Value="confirmPassword" Label="Confirm Password" Required="true"
+                                  RequiredError="Password confirmation is required!" InputType="InputType.Password" />
+
+                    <!-- New fields for Bio and Profile Image -->
+                    <MudTextField @bind-Value="bio" Label="Bio" Required="true"
+                                  RequiredError="Bio is required!" Multiline="true" Lines="3" MaxLines="5" />
+
+                    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles" MaximumFileCount="1" Accept="image/*" Required="true" RequiredError="Upload Profile Image">
+                        <ActivatorContent>
+                            <MudButton Class="mt-3" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Upload Profile Image
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    <MudText Class="ml-5">@file?.Name</MudText>
+                </MudForm>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Text" OnClick="@NavigateToLogin" Color="Color.Secondary">
+                    Sign in?
+                </MudButton>
+                <MudButton ButtonType="ButtonType.Button" Variant="Variant.Filled" Color="Color.Primary"
+                           Class="ml-auto" OnClick="HandleRegister" Disabled="@(isLoading)">Register</MudButton>
+            </MudCardActions>
+        </MudPaper>
+
+        <!-- Right: Image Section -->
+        <MudPaper Class="d-none d-md-block p-6 flex-shrink-0 bg-gray-200"
+                  Style="flex-basis: 40%; display: flex; align-items: center; justify-content: center;">
+            <img src="/register.webp" alt="Register" class="w-100 h-100 object-cover rounded-r-lg">
+        </MudPaper>
+    </MudCard>
+</MudContainer>
+
+
+@code {
+    private bool isLoading = false;
+
+    MudForm form;
+    bool success;
+    string username = string.Empty;
+    string email = string.Empty;
+    string password = string.Empty;
+    string confirmPassword = string.Empty;
+
+    // New fields for Bio and Profile Image
+    string bio = string.Empty;
+    private byte[] image;
+    IBrowserFile? file = null;
+
+    string apiBaseUrl;
+
+    private async Task UploadFiles(IBrowserFile _file)
+    {
+        const long MaxFileSize = 2 * 1024 * 1024; // 2 MB in bytes
+
+        if (_file.Size > MaxFileSize)
+        {
+            Snackbar.Add("File size exceeds 2 MB. Please upload a smaller file.", Severity.Error);
+            return;
+        }
+
+        file = _file;
+        Console.WriteLine($"Uploaded file name: {file.Name}");
+        using (var stream = new MemoryStream())
+        {
+            await file.OpenReadStream(maxAllowedSize: MaxFileSize).CopyToAsync(stream);
+            image = stream.ToArray();
+        }
+        Snackbar.Add("File uploaded successfully!", Severity.Success);
+    }
+
+    void NavigateToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        apiBaseUrl = Configuration["WEBAPI:ControllerURL"];
+        Snackbar.Add("Registering Please Wait...", Severity.Info, options =>
+            {
+                options.RequireInteraction = true; // Prevent auto-dismiss
+            });
+
+        if (password != confirmPassword)
+        {
+            Snackbar.Clear();
+            Snackbar.Add("Passwords do not match", Severity.Error);
+            isLoading = false;
+            return;
+        }
+        try
+        {
+            var RegisterResult = await supabaseService.RegisterUser(email, password, username);
+            string? RegisteredID = RegisterResult.Id;
+            string? RegisteredName = RegisterResult.Name;
+            Console.WriteLine($"Supabase Register: {RegisteredName} with {RegisteredID}");
+
+            if (RegisteredID == null)
+            {
+                Snackbar.Clear();
+                isLoading = false;
+                return;
+            }
+
+            var imageBase64 = Convert.ToBase64String(image);
+
+            var profileRequest = new Profile
+            {
+                userId = RegisteredID,
+                name = RegisteredName,
+                image = imageBase64, // Encode the image as Base64
+                bio = bio,
+                following = new List<string>(),
+                followers = new List<string>()
+            };
+
+            var response = await Http.PostAsJsonAsync($"{apiBaseUrl}/api/Profile", profileRequest);
+
+            Console.WriteLine("API response: " + response);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var profile = await response.Content.ReadFromJsonAsync<Profile>();
+                if (profile != null)
+                {
+                    Console.WriteLine($"Profile Registered: {profile.name}");
+                    byte[] imageBytes = Convert.FromBase64String(profile.image);
+                    Console.WriteLine($"Profile Registered: {imageBytes}");
+                }
+                else
+                {
+                    Console.WriteLine("Failed to register profile: " + response.ReasonPhrase);
+                }
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error: {errorMessage}");
+            }
+            Snackbar.Clear();
+            Snackbar.Add("Registration successful!", Severity.Success);
+            NavigationManager.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Clear();
+            Snackbar.Add($"Registration failed: {ex.Message}", Severity.Error);
+        }
+        isLoading = false;
+    }
+}

@@ -1,0 +1,226 @@
+@page "/write"
+@attribute [CustomAuthorize("user")]
+@inject IJSRuntime JSRuntime
+@inject HttpClient Http
+@using System.Text.Json;
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider Auth
+@inject MistralService MistralService
+@inject IConfiguration Configuration
+@using Markdig
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex flex-column align-items-center pt-5 mt-10">
+    <!-- Blog Form Card -->
+    <MudCard Class="d-flex flex-row align-items-stretch shadow-lg rounded-lg overflow-hidden w-100"
+             Style="max-height: 460px; width: 100%; margin-bottom: 40px;">
+
+        <!-- Left: Form Section -->
+        <MudPaper Class="p-5 flex-grow-1 d-flex flex-column justify-content-center"
+                  Style="min-width: 55%;">
+
+            <h1 class="mb-3">Write Your Blog</h1>
+
+            <MudTextField @bind-Value="Title" Label="Blog Title" Variant="Variant.Outlined" Required="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="Description" Label="Short Description" Variant="Variant.Outlined" Required="true" Class="mb-3" />
+
+            <!-- Dropdowns in a Row -->
+            <div class="d-flex gap-3">
+
+                <MudSelect T="string" Class="mt-1" Style="flex-shrink: 0; width: 120px;" Variant="Variant.Outlined" Label="Visibility" ValueChanged="AddVisibility">
+                    <MudSelectItem T="string" Value="@("Public")">Public</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Private")">Private</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Followers")">Followers</MudSelectItem>
+                </MudSelect>
+
+                <MudSelect T="string" Class="mt-1" Style="flex-shrink: 0; width: 120px;" Variant="Variant.Outlined" Label="Category" ValueChanged="AddCategory">
+                    <MudSelectItem T="string" Value="@("Technology")">Technology</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Lifestyle")">Lifestyle</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("HealthCare")">HealthCare</MudSelectItem>
+                </MudSelect>
+            </div>
+
+        </MudPaper>
+
+        <!-- Right: Image Section -->
+        <MudPaper Class="d-none d-md-flex flex-column align-items-center justify-content-between bg-gray-200 p-4"
+                  Style="min-width: 45%;">
+
+            <h3 class="mb-3 mt-3 text-center">Get Your Blog Done By AI!</h3>
+            <p class="text-center">For your title and description!</p>
+
+            <img src="/writeBlog.webp" alt="AI Assistance" class="w-75 h-auto object-cover rounded-lg">
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="GenerateBlog" Disabled="@isLoading">
+                Generate Blog
+            </MudButton>
+
+        </MudPaper>
+
+
+    </MudCard>
+
+    <!-- Blog Content Section -->
+    <div class="w-100 p-2">
+        <h3>Blog Content</h3>
+        <div id="editor" @ref="editorRef" class="border rounded p-3" Style="min-height: 250px;"></div>
+
+        <!-- Save Button -->
+        <div class="d-flex justify-content-end mt-3">
+            <MudButton OnClick="SaveContent" Variant="Variant.Filled" Color="Color.Primary">Save Blog</MudButton>
+        </div>
+    </div>
+</MudContainer>
+
+
+@code {
+    private bool isLoading = false;
+
+    private ElementReference editorRef;
+    private IJSObjectReference? quillInstance;
+
+    private string Title = "";
+    private string Description = "";
+    private string content = "";
+    private string SelectedVisibility; // Default value
+    private string SelectedCategory; // Default value
+
+    string editorId = "editor";
+    bool quillInitialized = false;
+
+    User? authuser;
+    string apiBaseUrl;
+
+    private async Task AddVisibility(string value)
+    {
+        SelectedVisibility = value;
+    }
+
+    private async Task AddCategory(string value)
+    {
+        SelectedCategory = value;
+    }
+
+    protected override void OnInitialized()
+    {
+        apiBaseUrl = Configuration["WEBAPI:ControllerURL"];
+
+        authuser = ((AuthenticationProvider)Auth).User;
+        Console.WriteLine($"User: {authuser.name}");
+        // Subscribe to navigation events
+        Navigation.LocationChanged += HandleLocationChanged;
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !quillInitialized)
+        {
+            quillInstance = await JSRuntime.InvokeAsync<IJSObjectReference>("initializeQuill", editorId);
+            quillInitialized = true;
+        }
+    }
+
+    private async void HandleLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            await CleanupQuill();
+            StateHasChanged();
+        });
+    }
+
+    private async Task CleanupQuill()
+    {
+        if (quillInitialized)
+        {
+            await JSRuntime.InvokeVoidAsync("destroyQuill", editorId);
+            quillInitialized = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Unsubscribe from navigation events
+        Navigation.LocationChanged -= HandleLocationChanged;
+        await CleanupQuill();
+    }
+
+    private async Task GenerateBlog() {
+        isLoading = true;
+        if (String.IsNullOrEmpty(Title) && String.IsNullOrEmpty(Description)) {
+            Snackbar.Add("Add Title and Description to generate blog content", Severity.Error);
+            isLoading = false;
+            return;
+        }
+
+        var prompt = $"Imagine yourself as Blog writter. Your role is to help the user to write a simple small size blog for the given title and description given by the user. Title: {Title}\nDescription: {Description}.\nNote: Give the blog content as a markup string without any unnecessary information.";
+        Snackbar.Add("Writing the Blog...", Severity.Info, options =>
+            {
+                options.RequireInteraction = true; // Prevent auto-dismiss
+            });
+        var AIContent = await MistralService.GenerateBlogAsync(prompt);
+        Snackbar.Clear();
+        Snackbar.Add("Generated Your Blog. Make your own changes!", Severity.Info);
+        await JSRuntime.InvokeAsync<string>("setQuillContent", quillInstance, AIContent);
+        isLoading = false;
+    }
+
+    private async Task SaveContent()
+    {
+        isLoading = true;
+
+        Snackbar.Add("Your Blog is storing, Please Wait...", Severity.Info, options =>
+            {
+                options.RequireInteraction = true; // Prevent auto-dismiss
+            });
+
+        if (quillInstance != null)
+        {
+            content = await JSRuntime.InvokeAsync<string>("getQuillContent", quillInstance);
+
+            if (string.IsNullOrWhiteSpace(Title))
+            {
+                Snackbar.Clear();
+                Snackbar.Add("Title cannot be Empty!", Severity.Error);
+                isLoading = false;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Description)){
+                Snackbar.Clear();
+                Snackbar.Add("Description cannot be Empty!", Severity.Error);
+                isLoading = false;
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(content)){
+                Snackbar.Clear();
+                Snackbar.Add("Blog Content cannot be Empty!", Severity.Error);
+                isLoading = false;
+                return;
+            }
+
+            // using var contentStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+
+            var blogData = new
+            {
+                userId = authuser.id,
+                userName = authuser.name,
+                title = Title,
+                description = Description,
+                category = SelectedCategory,
+                visibility = SelectedVisibility
+            };
+
+            await JSRuntime.InvokeVoidAsync("uploadBlog", JsonSerializer.Serialize(blogData), content, apiBaseUrl);
+            Snackbar.Clear();
+            Snackbar.Add("Your Blog will be posted shortly! Try Refresh!", Severity.Info);
+            isLoading = false;
+            Navigation.NavigateTo("/", replace:true);
+        }
+        isLoading = false;
+
+    }
+}

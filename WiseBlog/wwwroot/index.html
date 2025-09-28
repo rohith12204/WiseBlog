@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WiseBlog</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="WiseBlog.styles.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <div style="position:absolute; top:30vh; width:100%; text-align:center">
+            <h1>WiseBlog</h1>
+            <div style="display:flex; gap:10px; justify-content:center; align-items:center">
+                <div class="spinner-border" role="status"></div>
+                <p class="mt-4">The application is loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script src="js/blogUploader.js"></script>
+</body>
+
+<style>
+    :root {
+        --quill-toolbar-color: black;
+    }
+
+    .dark-mode {
+        --quill-toolbar-color: white;
+    }
+
+    /* Apply the color dynamically */
+    .ql-toolbar button {
+        color: var(--quill-toolbar-color);
+    }
+</style>
+
+<script>
+
+    window.setBlogContent = function (content) {
+        document.getElementById("blogContent").innerHTML = content;
+    };
+    window.getBlogContent = function () {
+        let blogDiv = document.getElementById("blogContent").cloneNode(true); // Clone to avoid modifying original content
+        let images = blogDiv.getElementsByTagName("img");
+
+        // Remove all images
+        for (let i = images.length - 1; i >= 0; i--) {
+            images[i].parentNode.removeChild(images[i]);
+        }
+
+        return blogDiv.innerHTML.trim(); // Return content without images
+    };
+
+    window.uploadBlog = async function (blogData, content) {
+        let formData = new FormData();
+        formData.append("file", new Blob([content], { type: "text/html" }), "blogContent.html");
+        formData.append("metadata", new Blob([blogData], { type: "application/json" }), "metadata.json");
+
+        try {
+            let response = await fetch("https://localhost:7289/api/Blog/UploadBlog", {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                console.log("Blog Stored Successfully!");
+            } else {
+                console.error("Failed to upload blog", response.statusText);
+            }
+        } catch (error) {
+            console.error("Error uploading blog:", error);
+        }
+    };
+
+
+    let quillInstances = {};
+
+    function initializeQuill(editorId) {
+        // First cleanup any existing instance
+        destroyQuill(editorId);
+
+        var quill = new Quill(`#${editorId}`, {
+            theme: 'snow',
+            placeholder: 'Write your blog here...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['image', 'code-block']
+                ]
+            }
+        });
+
+        quill.on('text-change', function () {
+            document.querySelectorAll(`#${editorId} .ql-editor img`).forEach(img => {
+                img.style.maxWidth = "60%";
+                img.style.height = "auto";
+                img.style.margin = "10px auto";
+                img.style.display = "block";
+            });
+        });
+
+        document.querySelector(`#${editorId} .ql-editor`).style.minHeight = "250px";
+
+        // Store the instance
+        quillInstances[editorId] = quill;
+        return quill;
+    }
+
+    function destroyQuill(editorId) {
+        // Remove all Quill toolbars from the document
+        document.querySelectorAll('.ql-toolbar').forEach(toolbar => {
+            toolbar.remove();
+        });
+
+        var editor = document.getElementById(editorId);
+        if (editor) {
+            // Remove all Quill-specific content and classes
+            editor.innerHTML = '';
+            editor.className = '';
+
+            // Remove all Quill containers
+            document.querySelectorAll('.ql-container').forEach(container => {
+                container.remove();
+            });
+        }
+
+        // Clean up our instance tracking
+        if (quillInstances[editorId]) {
+            delete quillInstances[editorId];
+        }
+    }
+
+    function getQuillContent(editor) {
+        return editor.root.innerHTML;
+    }
+
+    function setQuillContent(editor, content) {
+        editor.root.innerHTML = content;
+    }
+
+
+    function getQuillContent(editor) {
+        return editor.root.innerHTML;
+    }
+
+    function setQuillContent(editor, content) {
+        editor.root.innerHTML = content;
+    }
+</script>
+
+<script>
+
+    window.OpenNewTab = (args) => {
+        window.open(args);
+    };
+
+    window.CookieWriter = {
+        Write: function (cookie_name, cookie_value, date_time_str) {
+            var expires = "";
+
+            // set expiry if date is set
+            if (date_time_str) {
+                var date = new Date(date_time_str);
+                expires = "; expires=" + date.toGMTString();
+            }
+
+            //set value
+            document.cookie = cookie_name + "=" + cookie_value + expires + "; path=/";
+        }
+
+    }
+
+    window.CookieReader = {
+        Read: function (cookie_name) {
+            var name = cookie_name + "=";
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var ca = decodedCookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                    c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                    return c.substring(name.length, c.length);
+                }
+            }
+            return "";
+        }
+    }
+
+    window.CookieRemover = {
+        Delete: function (cookie_name) {
+            document.cookie = cookie_name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        }
+    }
+
+    window.AlertMessage = function (message) {
+        alert(message);
+    }
+</script>
+
+</html>

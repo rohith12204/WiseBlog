@@ -1,0 +1,112 @@
+﻿@page "/login"
+@inherits UserContext
+@inject SupabaseService supabaseService
+@inject AuthenticationStateProvider Auth
+@inject Supabase.Client _supabaseClient
+@inject IJSRuntime _jsRuntime
+@inject ISnackbar Snackbar
+<AuthorizeView>
+    <Authorized>
+        @{
+            AutoNavigate();
+        }
+    </Authorized>
+    <Authorizing>
+        <div class="mt-4">
+            <h2>Please Wait...</h2>
+        </div>
+    </Authorizing>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex justify-content-center align-items-center min-vh-100">
+            <MudCard Class="d-flex flex-row align-items-stretch shadow-lg rounded-lg overflow-hidden w-100"
+                     Style="height: 100%;">
+
+                <!-- Left: Login Form -->
+                <MudPaper Class="p-5 flex-grow-1 d-flex flex-column justify-content-center h-100"
+                          Style="min-width: 55%; height: 100%;">
+
+                    <MudCardHeader Class="text-center pb-2 mt-5">
+                        <MudText Typo="Typo.h5">Login</MudText>
+                    </MudCardHeader>
+                    <MudCardContent Class="d-flex flex-column gap-3">
+                        <MudTextField @bind-Value="Email" Label="Email" Required="true"
+                                      RequiredError="Email is required!"
+                                      InputType="InputType.Email" />
+                        <MudTextField @bind-Value="Password" Label="Password" Required="true"
+                                      RequiredError="Password is required!"
+                                      InputType="InputType.Password" />
+                    </MudCardContent>
+                    <MudCardActions Class="d-flex justify-content-between align-items-center mt-3 mb-8">
+                        <MudButton Variant="Variant.Text" OnClick="@NavigateToRegister" Color="Color.Secondary">
+                            New? Register
+                        </MudButton>
+                        <MudButton OnClick="HandleLogin"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Disabled="@isLoading">Login</MudButton>
+                    </MudCardActions>
+                </MudPaper>
+
+                <!-- Right: Image Section -->
+                <MudPaper Class="d-none d-md-flex align-items-center justify-content-center bg-gray-200 h-100"
+                          Style="min-width: 45%; height: 100%;">
+                    <img src="/login.webp" alt="Login" class="w-100 h-100 object-cover rounded-lg">
+                </MudPaper>
+
+
+            </MudCard>
+        </MudContainer>
+
+
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    User? user { get; set; }
+    private bool isLoading = false;
+    // private SnackbarMessageHandle? loggingInSnackbarHandle;
+
+    [SupplyParameterFromQuery(Name = "ReturnUrl")]
+    public string ReturnUrlPath { get; set; } = "";
+
+    private string Email { get; set; } = "";
+    private string Password { get; set; } = "";
+
+    public void AutoNavigate()
+    {
+        if (string.IsNullOrEmpty(ReturnUrlPath))
+        {
+            NavTo("/");
+        }
+        else
+        {
+            NavTo(ReturnUrlPath);
+        }
+    }
+
+    public async void HandleLogin()
+    {
+        isLoading = true;
+        Snackbar.Add("Logging in...", Severity.Info, options =>
+            {
+                options.RequireInteraction = true; // Prevent auto-dismiss
+            });
+        if (await LoginAsync(Email, Password))
+        {
+            AutoNavigate();
+        }
+        else
+        {
+            Snackbar.Clear();
+            Snackbar.Add("Invalid email or password", Severity.Error);
+            isLoading = false;
+        }
+
+        isLoading = false;
+    }
+
+    public void NavigateToRegister()
+    {
+        NavTo("/register");
+    }
+}
