@@ -1,0 +1,200 @@
+[
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "DeleteBlog",
+    "RelativePath": "api/Blog/DeleteBlog/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "DeleteSummary",
+    "RelativePath": "api/Blog/DeleteSummary/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "GetAllBlogs",
+    "RelativePath": "api/Blog/GetAllBlogs",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "GetBlog",
+    "RelativePath": "api/Blog/GetBlog/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "GetContent",
+    "RelativePath": "api/Blog/GetContent/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "GetSummary",
+    "RelativePath": "api/Blog/GetSummary/{userid}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userid",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "SaveSummary",
+    "RelativePath": "api/Blog/SaveSummary",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "summary",
+        "Type": "WiseBlog.Shared.Models.Summary",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.BlogController",
+    "Method": "UploadBlog",
+    "RelativePath": "api/Blog/UploadBlog",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.NotificationController",
+    "Method": "GetNotification",
+    "RelativePath": "api/Notification/GetNotifications/{userid}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userid",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.ProfileController",
+    "Method": "RegisterProfileAsync",
+    "RelativePath": "api/Profile",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "WiseBlog.Shared.Models.Profile",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [],
+    "EndpointName": "RegisterProfile"
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.ProfileController",
+    "Method": "GetProfileAsync",
+    "RelativePath": "api/Profile",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [],
+    "EndpointName": "GetProfileById"
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.ProfileController",
+    "Method": "GetProfileImage",
+    "RelativePath": "api/Profile/GetProfileImage/{userId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WiseBlog.Controllers.ProfileController",
+    "Method": "ToggleFollow",
+    "RelativePath": "api/Profile/ToggleFollow",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "WiseBlog.Shared.Models.FollowRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]
